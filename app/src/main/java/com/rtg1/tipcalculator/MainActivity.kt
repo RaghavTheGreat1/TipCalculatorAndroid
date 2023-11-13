@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,10 +15,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
@@ -27,7 +32,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -52,16 +60,26 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun TipTimeLayout() {
+fun TipTimeLayout(modifier: Modifier = Modifier) {
     var amountInput: Double by remember {
         mutableStateOf(0.0)
     }
-    val tip = calculateTip(amountInput)
+    var tipPercentage: Double by remember {
+        mutableStateOf(15.0)
+    }
+
+    var toRoundUpTip: Boolean by remember {
+        mutableStateOf(true)
+    }
+
+    val tip = calculateTip(amountInput, tipPercentage, toRoundUpTip)
+
 
     Column(
         modifier = Modifier
             .statusBarsPadding()
             .padding(horizontal = 40.dp)
+            .verticalScroll(rememberScrollState())
             .safeDrawingPadding(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -72,18 +90,42 @@ fun TipTimeLayout() {
                 .padding(bottom = 16.dp, top = 40.dp)
                 .align(alignment = Alignment.Start)
         )
-        EditNumberField(modifier = Modifier
+        EditNumberTextField(modifier = Modifier
             .padding(bottom = 32.dp)
             .fillMaxWidth(),
-    value = amountInput.toString(),
+            value = amountInput.toString(),
             onValueChange = {
                 amountInput = it.toDouble()
             }
+        )
 
+        TipPercentageTextField(
+            modifier = Modifier
+                .padding(bottom = 32.dp)
+                .fillMaxWidth(),
+            value = tipPercentage,
+            onValueChange = {
+                tipPercentage = it.toDouble()
+            }
+        )
+
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = "Round up tip?"
             )
-
+            Switch(
+                checked = toRoundUpTip,
+                onCheckedChange = {
+                    toRoundUpTip = it
+                },
+            )
+        }
         Text(
-            text = stringResource(R.string.tip_amount,"$tip") ,
+            text = stringResource(R.string.tip_amount, "$tip"),
             style = MaterialTheme.typography.displaySmall
         )
         Spacer(modifier = Modifier.height(150.dp))
@@ -95,8 +137,11 @@ fun TipTimeLayout() {
  * according to the local currency.
  * Example would be "$10.00".
  */
-private fun calculateTip(amount: Double, tipPercent: Double = 15.0): String {
-    val tip = tipPercent / 100 * amount
+private fun calculateTip(amount: Double, tipPercent: Double = 15.0, roundUp: Boolean): String {
+    var tip = tipPercent / 100 * amount
+    if (roundUp) {
+        tip = kotlin.math.ceil(tip)
+    }
     return NumberFormat.getCurrencyInstance().format(tip)
 }
 
@@ -110,18 +155,55 @@ fun TipTimeLayoutPreview() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditNumberField( value: String, onValueChange: (String) -> Unit, modifier: Modifier = Modifier,) {
+fun EditNumberTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
 
 
     TextField(
         value = value,
+        leadingIcon = {
+            Icon(
+                painter = painterResource(id = R.drawable.payments),
+                contentDescription = null,
+                tint = Color.Black,
+            )
+        },
         keyboardOptions = KeyboardOptions(
             keyboardType = KeyboardType.Number,
+            imeAction = ImeAction.Next,
         ),
         label = {
-                Text(text = "Bill Amount")
+            Text(text = "Bill Amount")
         },
         onValueChange = onValueChange,
-        modifier = modifier
+        modifier = modifier,
+    )
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TipPercentageTextField(
+    modifier: Modifier = Modifier,
+    value: Double,
+    onValueChange: (String) -> Unit
+) {
+    TextField(
+        modifier = modifier, value = value.toString(), onValueChange = onValueChange,
+        leadingIcon = {
+            Text(text = "%")
+        },
+        label = {
+            Text(
+                text = "Tip Percentage(%)",
+            )
+        },
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Number,
+            imeAction = ImeAction.Next,
+        ),
     )
 }
